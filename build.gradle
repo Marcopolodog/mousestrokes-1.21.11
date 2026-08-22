@@ -1,0 +1,91 @@
+plugins {
+	// VERIFIED (from FabricMC/fabric-example-mod, branch "1.21", which is the
+	// branch Fabric updates for every 1.21.x release including 1.21.11):
+	// the obfuscated-era Loom plugin id is 'net.fabricmc.fabric-loom-remap'.
+	// If your local Loom version only knows the plugin id 'fabric-loom',
+	// use that instead - check whichever id fabricmc.net/develop shows you.
+	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	// Add repositories to retrieve artifacts from in here.
+	// You should only use this when depending on other mods because
+	// Loom adds the essential maven repositories to download Minecraft and
+	// Yarn or Fabric Loader automatically.
+	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
+	// for more information about repositories.
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// Fabric API. This is technically optional, but this mod needs it for
+	// HudElementRegistry (HUD rendering) and KeyBindingHelper (config screen key).
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	// FIX (build-readiness audit): MouseStrokesConfig uses Gson directly.
+	// Gson is also a transitive dependency of Minecraft itself (pulled in
+	// automatically by the "minecraft" dependency above), so this line is
+	// very likely redundant at runtime - but declaring it explicitly removes
+	// any doubt about it being on the COMPILE classpath, at zero real cost
+	// (Gradle simply resolves both requests to one jar). This directly
+	// removes one of the "ASSUMPTION" rows from the earlier verification
+	// ledger. 2.11.0 is a Maven Central release; bump it if a dependency
+	// conflict warning ever points at a different resolved version.
+	implementation "com.google.code.gson:gson:2.11.0"
+}
+
+processResources {
+	inputs.property "version", project.version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": inputs.properties.version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+// NOTE: the official Fabric template also bundles a `jar { from("LICENSE") {...} }`
+// block that copies a LICENSE file into the built jar. That file is not part of
+// this generated project, so the block is omitted here - add your own LICENSE
+// file and the corresponding jar{} block back in if you want that behavior.
+
+// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on
+// how to set up publishing.
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			artifactId = project.archives_base_name
+			from components.java
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html#publishing_maven:repositories
+	// for information on how to set up publishing to a repository other than Maven Local.
+	repositories {
+		// Add repositories to publish to here.
+	}
+}
